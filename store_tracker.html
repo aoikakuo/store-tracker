@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>入店分析</title>
+<style>
+/* ── Design tokens ── */
+:root{
+  --bg:#f2f1ee;
+  --surface:#ffffff;
+  --surface2:#eceae6;
+  --surface3:#e0deda;
+  --border:rgba(0,0,0,.07);
+  --border-s:rgba(0,0,0,.14);
+  --text:#161610;
+  --text2:#5e5d56;
+  --text3:#9c9b94;
+  --accent:#1e4fa3;
+  --accent-l:#dde8f8;
+  --accent-t:#123070;
+  --green:#16663e;
+  --green-l:#d9f0e6;
+  --amber:#7a4f00;
+  --amber-l:#faecd4;
+  --red:#982020;
+  --red-l:#fce5e5;
+  --r:10px;--rs:6px;
+  --btn-size:44px;
+  --shadow:0 1px 4px rgba(0,0,0,.08);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#141412;--surface:#1e1e1c;--surface2:#272725;--surface3:#303030;
+    --border:rgba(255,255,255,.07);--border-s:rgba(255,255,255,.14);
+    --text:#eeede7;--text2:#a0a098;--text3:#636260;
+    --accent-l:#172545;--accent-t:#7faaee;
+    --green-l:#0c2a1c;--amber-l:#1e1400;--red-l:#250e0e;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+
+/* ── SVG icons ── */
+.icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+.icon svg{display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Layout ── */
+.app{display:flex;flex-direction:column;min-height:100vh;max-width:560px;margin:0 auto}
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 0;position:sticky;top:0;z-index:20}
+.hdr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.hdr-title{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-date{font-size:12px;color:var(--text2);background:var(--surface2);padding:4px 10px;border-radius:20px;font-weight:500}
+.icon-btn{background:none;border:none;cursor:pointer;padding:4px;color:var(--text2);display:flex;align-items:center;justify-content:center;border-radius:6px}
+.icon-btn:active{background:var(--surface2)}
+.nav{display:flex}
+.nav-btn{flex:1;padding:8px 2px 11px;font-size:10px;font-weight:500;background:none;border:none;border-bottom:2.5px solid transparent;color:var(--text3);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;letter-spacing:.02em}
+.nav-btn .nv-icon{display:flex;align-items:center;justify-content:center;color:inherit}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.content{flex:1;padding:14px 14px 100px}
+.screen{display:none}.screen.active{display:block}
+
+/* ── Phase banner ── */
+.phase-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);margin-bottom:14px;border:1px solid var(--border-s);background:var(--surface)}
+.phase-banner.b-open{border-color:var(--accent);background:var(--accent-l)}
+.phase-banner.b-work{border-color:var(--green);background:var(--green-l)}
+.phase-banner.b-done{border-color:var(--border-s)}
+.phase-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.b-open .phase-icon{background:var(--accent);color:#fff}
+.b-work .phase-icon{background:var(--green);color:#fff}
+.b-done .phase-icon{background:var(--surface3);color:var(--text3)}
+.phase-text{flex:1;min-width:0}
+.phase-label{font-size:13px;font-weight:700}
+.phase-sub{font-size:11px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phase-btn{padding:8px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;transition:opacity .15s}
+.phase-btn:active{opacity:.8}
+.b-open .phase-btn{background:var(--accent);color:#fff}
+.b-work .phase-btn{background:var(--green);color:#fff}
+.b-done .phase-btn{background:var(--surface3);color:var(--text2)}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+
+/* ── Weather strip (auto) ── */
+.wx-strip{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--rs);background:var(--surface2);margin-bottom:0}
+.wx-icon-wrap{width:36px;height:36px;border-radius:8px;background:var(--accent-l);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent)}
+.wx-info{flex:1}
+.wx-label{font-size:13px;font-weight:700}
+.wx-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.wx-loading{color:var(--text3);font-size:12px}
+
+/* ── Hour selector ── */
+.hour-selector-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.hour-select{flex:1;padding:10px 12px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;font-family:inherit;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%239c9b94' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.hour-select:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.now-tag{font-size:10px;font-weight:700;background:var(--green);color:#fff;padding:3px 8px;border-radius:20px;white-space:nowrap}
+
+/* ── Main input section ── */
+.input-section{margin-bottom:10px}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px;border-bottom:2px solid var(--border-s);margin-bottom:0}
+.section-header-left{display:flex;align-items:center;gap:8px}
+.section-type-label{font-size:13px;font-weight:700;color:var(--text2)}
+.section-total-badge{font-size:12px;font-weight:700;color:var(--accent-t);background:var(--accent-l);padding:3px 10px;border-radius:20px}
+
+/* ── Nation counter rows — PRIORITY 1 ── */
+.nation-counter-row{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.nation-counter-row:last-child{border-bottom:none}
+.nation-label-col{flex:1;min-width:0}
+.nation-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.2}
+.nation-val-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.counter-col{display:flex;align-items:center;gap:0}
+.cnt-btn{width:var(--btn-size);height:var(--btn-size);border-radius:10px;border:1.5px solid var(--border-s);background:var(--surface2);color:var(--text);font-size:22px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .1s;flex-shrink:0;-webkit-touch-callout:none}
+.cnt-btn:active{background:var(--accent-l);border-color:var(--accent);color:var(--accent)}
+.cnt-val{font-size:22px;font-weight:700;min-width:48px;text-align:center;color:var(--text);letter-spacing:-.02em}
+
+/* ── Staff section ── */
+.staff-block{border:1.5px solid var(--border-s);border-radius:var(--r);overflow:hidden;margin-bottom:10px}
+.staff-block-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.staff-color-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.staff-block-name{font-size:14px;font-weight:700;flex:1}
+.staff-block-body{padding:0 14px}
+.staff-section-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding-top:10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.staff-section-total{font-size:12px;font-weight:700;color:var(--accent-t);background:var(--accent-l);padding:2px 8px;border-radius:20px}
+
+/* ── Realtime totals ── */
+.rt-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.rt-cell{background:var(--surface2);border-radius:var(--rs);padding:10px 8px;text-align:center}
+.rt-cell-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.rt-cell-val{font-size:22px;font-weight:700;color:var(--text);line-height:1}
+.rt-cell-sub{font-size:10px;color:var(--text2);margin-top:2px}
+.rt-summary-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-top:8px}
+.rt-chip{flex-shrink:0;background:var(--accent-l);border-radius:var(--rs);padding:6px 12px;text-align:center;min-width:68px}
+.rt-chip-label{font-size:10px;font-weight:700;color:var(--accent-t);letter-spacing:.04em}
+.rt-chip-val{font-size:17px;font-weight:700;color:var(--accent)}
+
+/* ── Shift pills ── */
+.shift-pills{display:flex;flex-wrap:wrap;gap:7px}
+.shift-pill{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border-s);background:var(--surface2);cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);transition:all .15s;user-select:none}
+.shift-pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.shift-pill-check{width:16px;height:16px;border-radius:4px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.shift-pill.on .shift-pill-check::after{content:'';display:block;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+
+/* ── Auto-save indicator ── */
+.autosave-bar{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:11px;font-weight:600;color:var(--green);min-height:18px;margin-bottom:6px;opacity:0;transition:opacity .3s}
+.autosave-bar.show{opacity:1}
+.autosave-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+/* ── Metrics ── */
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.metric{background:var(--surface2);border-radius:var(--rs);padding:12px 14px}
+.metric-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.metric-value{font-size:26px;font-weight:700;line-height:1;color:var(--text)}
+.metric-sub{font-size:11px;color:var(--text2);margin-top:3px}
+
+/* ── Breakdown table ── */
+.bktable{width:100%;border-collapse:collapse;font-size:12px}
+.bktable th{padding:6px 6px;font-size:10px;font-weight:700;color:var(--text3);text-align:right;border-bottom:2px solid var(--border-s);text-transform:uppercase;letter-spacing:.05em}
+.bktable th:first-child{text-align:left}
+.bktable td{padding:8px 6px;border-bottom:1px solid var(--border);text-align:right;color:var(--text)}
+.bktable td:first-child{text-align:left;font-weight:600;color:var(--text2)}
+.bktable tr:last-child td{border-bottom:none;font-weight:700;color:var(--text)}
+.chart-wrap{position:relative;width:100%}
+
+/* ── Prediction ── */
+.pred-card{background:var(--accent);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.pred-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.pred-main{display:flex;align-items:baseline;gap:5px;margin-bottom:5px}
+.pred-value{font-size:40px;font-weight:700;color:#fff;line-height:1}
+.pred-unit{font-size:14px;color:rgba(255,255,255,.8)}
+.pred-basis{font-size:12px;color:rgba(255,255,255,.75);line-height:1.5;white-space:pre-line}
+.forecast-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.forecast-day{flex-shrink:0;text-align:center;background:var(--surface2);border-radius:var(--rs);padding:9px 10px;min-width:62px}
+.fd-date{font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600}
+.fd-wx{display:flex;justify-content:center;margin-bottom:4px;color:var(--accent)}
+.fd-pred{font-size:13px;font-weight:700;color:var(--accent)}
+.yoy-banner{padding:10px 14px;border-radius:var(--rs);display:flex;align-items:center;gap:10px}
+.yoy-up{background:var(--green-l);color:var(--green)}
+.yoy-down{background:var(--red-l);color:var(--red)}
+.yoy-flat{background:var(--surface2);color:var(--text2)}
+.yoy-badge{font-size:22px;font-weight:700;flex-shrink:0}
+.yoy-detail{font-size:12px;line-height:1.5}
+
+/* ── Report ── */
+.rep-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.rep-tab{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border-s);background:var(--surface2);color:var(--text2);transition:all .15s}
+.rep-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ai-bubble{background:var(--surface2);border-left:3px solid var(--accent);border-radius:var(--rs);padding:14px;font-size:13px;line-height:1.75;white-space:pre-wrap}
+.thinking{display:flex;align-items:center;gap:6px;padding:20px;color:var(--text2);font-size:13px}
+.da{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+.da:nth-child(2){animation-delay:.3s}.da:nth-child(3){animation-delay:.6s}
+@keyframes pulse{0%,80%,100%{opacity:.15}40%{opacity:1}}
+
+/* ── History ── */
+.hist-card{padding:11px 0;border-bottom:1px solid var(--border)}
+.hist-card:last-child{border-bottom:none}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.chip-b{background:var(--accent-l);color:var(--accent-t)}
+.chip-g{background:var(--green-l);color:var(--green)}
+.chip-a{background:var(--amber-l);color:var(--amber)}
+
+/* ── CSV ── */
+.csv-drop{border:2px dashed var(--border-s);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;margin-bottom:10px;transition:all .15s}
+.csv-drop:hover,.csv-drop.over{border-color:var(--accent);background:var(--accent-l)}
+.csv-preview{overflow-x:auto;margin-top:8px}
+.csv-preview table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}
+.csv-preview th{padding:4px 6px;background:var(--surface2);font-size:10px;font-weight:700;color:var(--text3);border:1px solid var(--border)}
+.csv-preview td{padding:4px 6px;border:1px solid var(--border)}
+
+/* ── Settings ── */
+.settings-section{margin-bottom:16px}
+.settings-section-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.settings-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row label{font-size:13px;font-weight:600;color:var(--text2);flex:1;white-space:nowrap}
+.settings-inp{flex:2;padding:8px 10px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit}
+.settings-inp:focus{outline:2px solid var(--accent)}
+.loc-search-row{display:flex;gap:7px;margin-bottom:8px}
+.loc-search-row input{flex:1;padding:10px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit}
+.loc-search-row input:focus{outline:2px solid var(--accent)}
+.loc-result{padding:9px 12px;border-radius:var(--rs);background:var(--green-l);color:var(--green);font-size:12px;line-height:1.5;margin-bottom:8px;display:none;white-space:pre-line;font-weight:600}
+.loc-error{padding:9px 12px;border-radius:var(--rs);background:var(--red-l);color:var(--red);font-size:12px;margin-bottom:8px;display:none;font-weight:600}
+.staff-list-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--rs);background:var(--surface2);margin-bottom:6px}
+.staff-list-item .sli-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.staff-list-item .sli-name{flex:1;font-size:13px;font-weight:700}
+.staff-list-item .sli-del{background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);display:flex;align-items:center;justify-content:center;border-radius:5px}
+.staff-list-item .sli-del:hover{color:var(--red);background:var(--red-l)}
+
+/* ── Buttons ── */
+.btn-p{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;margin-top:4px}
+.btn-p:active{opacity:.85}
+.btn-p.success{background:var(--green)}
+.btn-s{width:100%;padding:12px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border-s);border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px}
+.btn-sm{padding:8px 14px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border-s);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* ── Memo ── */
+.memo-ta{width:100%;padding:11px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;resize:none;line-height:1.5}
+.memo-ta:focus{outline:2px solid var(--accent)}
+
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r) var(--r) 0 0;padding:20px 16px 44px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal input[type=text],.modal input[type=number]{width:100%;padding:11px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:15px;font-family:inherit;margin-bottom:10px}
+.modal input:focus{outline:2px solid var(--accent)}
+.close-summary-box{background:var(--surface2);border-radius:var(--rs);padding:14px;margin-bottom:16px;font-size:13px;line-height:1.9;font-weight:500}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:#161610;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Phase 2 complete ── */
+.complete-card{text-align:center;padding:2.5rem 1rem}
+.complete-icon{width:64px;height:64px;background:var(--green-l);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--green)}
+/* ── Period tabs active state ── */
+.period-tab.active{background:var(--surface)!important;color:var(--text)!important;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+/* ── Pie legend ── */
+.pie-legend{display:flex;flex-direction:column;gap:7px}
+.pie-legend-item{display:flex;align-items:center;gap:7px;font-size:12px}
+.pie-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pie-legend-label{color:var(--text2);font-weight:600;flex:1}
+.pie-legend-val{font-size:13px;font-weight:700;color:var(--text)}
+.pie-legend-pct{font-size:11px;color:var(--text3);margin-left:3px}
+/* ── YoY comparison ── */
+.yoy-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.yoy-cell{background:var(--surface2);border-radius:var(--rs);padding:10px 8px;text-align:center}
+.yoy-cell-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.yoy-cell-val{font-size:18px;font-weight:700;line-height:1}
+.yoy-cell.up .yoy-cell-val{color:var(--green)}
+.yoy-cell.down .yoy-cell-val{color:var(--red)}
+.yoy-cell.flat .yoy-cell-val{color:var(--text2)}
+.yoy-cell-sub{font-size:10px;color:var(--text3);margin-top:3px}
+/* ── Staff fitting trend ── */
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ Header ══ -->
+<div class="hdr">
+  <div class="hdr-top">
+    <span class="hdr-title" id="hdr-title">入店分析</span>
+    <div class="hdr-right">
+      <span class="hdr-date" id="today-badge"></span>
+      <button class="icon-btn" onclick="openSettings()" title="設定">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="goScreen('input')">
+      <span class="nv-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></span>
+      入力
+    </button>
+    <button class="nav-btn" onclick="goScreen('forecast')">
+      <span class="nv-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg></span>
+      予測
+    </button>
+    <button class="nav-btn" onclick="goScreen('summary')">
+      <span class="nv-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+      集計
+    </button>
+    <button class="nav-btn" onclick="goScreen('report')">
+      <span class="nv-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+      AI
+    </button>
+    <button class="nav-btn" onclick="goScreen('history')">
+      <span class="nv-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      履歴
+    </button>
+  </nav>
+</div>
+
+<div class="content">
+
+<!-- ════════════ INPUT ════════════ -->
+<div id="screen-input" class="screen active">
+  <!-- Phase banner -->
+  <div class="phase-banner b-open" id="phase-banner">
+    <div class="phase-icon" id="phase-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <div class="phase-text">
+      <div class="phase-label" id="phase-label">始業前</div>
+      <div class="phase-sub" id="phase-sub">出勤スタッフを選択して開始してください</div>
+    </div>
+    <button class="phase-btn" id="phase-btn" onclick="advancePhase()">始業開始</button>
+  </div>
+
+  <!-- Phase 0 block -->
+  <div id="phase0-block">
+    <div class="card">
+      <div class="card-title">出勤スタッフ</div>
+      <div class="shift-pills" id="shift-pills"></div>
+      <p id="no-staff-msg" style="font-size:13px;color:var(--text3);margin-top:8px;display:none">設定からスタッフを登録してください</p>
+    </div>
+    <div class="card">
+      <div class="card-title">天気（自動取得）</div>
+      <div id="wx-loading" class="wx-loading" style="padding:8px 0">位置情報から天気を取得中...</div>
+      <div id="wx-strip" class="wx-strip" style="display:none">
+        <div class="wx-icon-wrap" id="wx-icon-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </div>
+        <div class="wx-info">
+          <div class="wx-label" id="wx-label">—</div>
+          <div class="wx-sub" id="wx-sub">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 1 block -->
+  <div id="phase1-block" style="display:none">
+    <div class="autosave-bar" id="autosave-bar"><div class="autosave-dot"></div>自動保存済み</div>
+
+    <!-- Realtime totals -->
+    <div class="card">
+      <div class="card-title">本日合計 — リアルタイム</div>
+      <div class="rt-row" id="rt-nation-row"></div>
+      <div class="rt-summary-strip" id="rt-strip"></div>
+    </div>
+
+    <!-- Hour selector -->
+    <div class="card">
+      <div class="card-title">時間帯を選択して入力</div>
+      <div class="hour-selector-row">
+        <select class="hour-select" id="hour-select" onchange="onHourChange()"></select>
+        <span class="now-tag" id="now-tag">現在時刻</span>
+      </div>
+
+      <!-- Entry -->
+      <div class="input-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <span class="section-type-label">入店人数</span>
+          </div>
+          <span class="section-total-badge" id="entry-total-badge">計 0 名</span>
+        </div>
+        <div id="entry-rows"></div>
+      </div>
+
+
+    </div>
+
+    <!-- Staff section -->
+    <div class="card" id="staff-daily-card" style="display:none">
+      <div class="card-title">スタッフ別（日計）</div>
+      <div id="staff-daily-list"></div>
+    </div>
+
+    <!-- Memo -->
+    <div class="card">
+      <div class="card-title">本日メモ</div>
+      <textarea class="memo-ta" id="free-memo" rows="3" placeholder="特記事項・イベント・セールなど…" oninput="autoSave()"></textarea>
+    </div>
+  </div>
+
+  <!-- Phase 2 block -->
+  <div id="phase2-block" style="display:none">
+    <div class="card complete-card">
+      <div class="complete-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px">本日の締めが完了しました</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px">データは保存されています</div>
+      <button class="btn-s" onclick="goScreen('summary')">本日の集計を確認する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ FORECAST ════════════ -->
+<!-- ════════════ FORECAST ════════════ -->
+<div id="screen-forecast" class="screen">
+  <div id="forecast-loading" class="card" style="text-align:center;padding:1.5rem">
+    <div class="thinking" style="justify-content:center"><div class="da"></div><div class="da"></div><div class="da"></div><span style="margin-left:6px;font-size:13px">天気予報を取得中...</span></div>
+  </div>
+  <div id="forecast-content" style="display:none">
+    <!-- Today prediction -->
+    <div class="pred-card">
+      <div class="pred-title">本日の入店数予測</div>
+      <div class="pred-main"><span class="pred-value" id="pred-val">—</span><span class="pred-unit">名</span></div>
+      <div class="pred-basis" id="pred-basis"></div>
+    </div>
+    <!-- 7-day forecast -->
+    <div class="card">
+      <div class="card-title">週間予報と入店予測</div>
+      <div class="forecast-row" id="forecast-row"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ SUMMARY ════════════ -->
+<div id="screen-summary" class="screen">
+  <!-- Period tabs -->
+  <div style="display:flex;background:var(--surface2);border-radius:var(--rs);padding:3px;gap:2px;margin-bottom:14px">
+    <button class="period-tab active" onclick="selPeriod(this,'day')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;background:var(--surface);font-size:12px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:all .15s">日次</button>
+    <button class="period-tab" onclick="selPeriod(this,'week')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;background:none;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s">週次</button>
+    <button class="period-tab" onclick="selPeriod(this,'month')" style="flex:1;padding:8px 4px;border:none;border-radius:5px;background:none;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s">月次</button>
+  </div>
+
+  <!-- KPI metrics -->
+  <div class="metric-grid" id="sum-metrics"></div>
+
+  <!-- YoY comparison row -->
+  <div class="card" id="yoy-card">
+    <div class="card-title">昨年対比</div>
+    <div id="yoy-comparison"></div>
+  </div>
+
+  <!-- Conversion funnel bar chart -->
+  <div class="card">
+    <div class="card-title">コンバージョン率（入店 → アプローチ → 試着）</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="funnelChart"></canvas></div>
+  </div>
+
+  <!-- Customer breakdown pie -->
+  <div class="card">
+    <div class="card-title">客層別 入店数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <div class="chart-wrap" style="height:180px"><canvas id="entryPieChart"></canvas></div>
+      <div id="entryPieLegend"></div>
+    </div>
+  </div>
+
+  <!-- Approach breakdown pie (week/month only) -->
+  <div class="card" id="approachPieCard">
+    <div class="card-title">客層別 アプローチ数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <div class="chart-wrap" style="height:180px"><canvas id="approachPieChart"></canvas></div>
+      <div id="approachPieLegend"></div>
+    </div>
+  </div>
+
+  <!-- Fitting breakdown pie (week/month only) -->
+  <div class="card" id="fittingPieCard">
+    <div class="card-title">客層別 試着数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <div class="chart-wrap" style="height:180px"><canvas id="fittingPieChart"></canvas></div>
+      <div id="fittingPieLegend"></div>
+    </div>
+  </div>
+
+  <!-- Staff approach pie -->
+  <div class="card" id="staffApproachPieCard">
+    <div class="card-title">スタッフ別 アプローチ数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <div class="chart-wrap" style="height:180px"><canvas id="staffApproachPieChart"></canvas></div>
+      <div id="staffApproachPieLegend"></div>
+    </div>
+  </div>
+
+  <!-- Staff fitting pie -->
+  <div class="card" id="staffFittingPieCard">
+    <div class="card-title">スタッフ別 試着数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <div class="chart-wrap" style="height:180px"><canvas id="staffFittingPieChart"></canvas></div>
+      <div id="staffFittingPieLegend"></div>
+    </div>
+  </div>
+
+  <!-- Monthly trend lines (month only) -->
+  <div class="card" id="trendLineCard" style="display:none">
+    <div class="card-title">月次トレンド（入店 / アプローチ / 試着）</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="trendLineChart"></canvas></div>
+  </div>
+
+  <!-- Staff monthly trend lines (month only) -->
+  <div class="card" id="staffTrendCard" style="display:none">
+    <div class="card-title">スタッフ別 月次アプローチ数</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="staffTrendChart"></canvas></div>
+  </div>
+
+  <!-- YoY bar chart -->
+  <div class="card">
+    <div class="card-title">昨年対比グラフ</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="yoyBarChart"></canvas></div>
+  </div>
+
+  <!-- Detailed breakdown table -->
+  <div class="card">
+    <div class="card-title">客層別 詳細内訳</div>
+    <table class="bktable" id="entry-breakdown"></table>
+  </div>
+
+  <!-- Staff table -->
+  <div class="card">
+    <div class="card-title">スタッフ別集計</div>
+    <div id="staff-sum-list"></div>
+  </div>
+</div>
+
+<!-- ════════════ REPORT ════════════ -->
+<div id="screen-report" class="screen">
+  <div class="rep-tabs">
+    <button class="rep-tab active" onclick="selRepTab(this,'today')">本日</button>
+    <button class="rep-tab" onclick="selRepTab(this,'week')">週間</button>
+    <button class="rep-tab" onclick="selRepTab(this,'yoy')">前年比</button>
+    <button class="rep-tab" onclick="selRepTab(this,'trend')">トレンド</button>
+  </div>
+  <div id="report-area">
+    <div class="card" style="text-align:center;padding:2rem 1rem">
+      <div style="width:56px;height:56px;background:var(--accent-l);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--accent)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.6;margin-bottom:14px">蓄積データをAIが分析して<br>実践的なレポートを生成します</p>
+      <button class="btn-p" onclick="genReport()">レポートを生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ HISTORY ════════════ -->
+<div id="screen-history" class="screen">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:0">過去のデータ</div>
+      <button class="btn-sm" onclick="openCsvModal()">CSVインポート</button>
+    </div>
+    <div id="history-list"><p style="color:var(--text3);font-size:13px;padding:8px 0">まだデータがありません</p></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">設定</div>
+    <div class="settings-section">
+      <div class="settings-section-title">店舗情報</div>
+      <div class="settings-row"><label>店舗名</label><input class="settings-inp" type="text" id="cfg-name" placeholder="例：○○ 渋谷店" maxlength="30"></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">天気予報の地点</div>
+      <div class="loc-search-row">
+        <input type="text" id="loc-inp" placeholder="地名で検索（例：渋谷、大阪梅田）">
+        <button class="btn-sm" onclick="searchLoc()">検索</button>
+      </div>
+      <div id="loc-result" class="loc-result"></div>
+      <div id="loc-error" class="loc-error"></div>
+      <div id="loc-candidates" style="display:none;margin-bottom:8px"></div>
+      <div class="settings-row"><label>現在の地点</label><span id="cfg-loc-label" style="font-size:12px;color:var(--text2);flex:2;text-align:right;font-weight:600">未設定</span></div>
+      <div class="settings-row"><label>緯度</label><input class="settings-inp" type="number" id="cfg-lat" step="0.0001" placeholder="35.6895"></div>
+      <div class="settings-row"><label>経度</label><input class="settings-inp" type="number" id="cfg-lon" step="0.0001" placeholder="139.6917"></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">スタッフ管理</div>
+      <div id="cfg-staff-list" style="margin-bottom:10px"></div>
+      <div class="loc-search-row">
+        <input type="text" id="cfg-staff-inp" placeholder="名前を入力（例：田中）" maxlength="10">
+        <button class="btn-sm" onclick="addStaff()">追加</button>
+      </div>
+      <div id="cfg-staff-msg" style="font-size:12px;font-weight:600;color:var(--red);margin-top:4px;display:none"></div>
+    </div>
+    <button class="btn-p" onclick="saveSettings()">保存する</button>
+    <button class="btn-s" onclick="closeSettings()">キャンセル</button>
+  </div>
+</div>
+
+<!-- ══ CLOSE MODAL ══ -->
+<div class="modal-bg" id="close-modal">
+  <div class="modal">
+    <div class="modal-title">本日の締め作業</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px">本日のデータを確定します。締め後も閲覧・修正は可能です。</p>
+    <div class="close-summary-box" id="close-summary"></div>
+    <button class="btn-p success" onclick="confirmClose()">締め作業を完了する</button>
+    <button class="btn-s" onclick="document.getElementById('close-modal').classList.remove('open')">戻る</button>
+  </div>
+</div>
+
+<!-- ══ CSV MODAL ══ -->
+<div class="modal-bg" id="csv-modal">
+  <div class="modal">
+    <div class="modal-title">CSVインポート</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6">対応列：<code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:11px">日付,曜日,天気,入店数,アプローチ数,試着数</code><br>日付形式: YYYY/MM/DD または YYYY-MM-DD</p>
+    <div class="csv-drop" id="csv-drop" onclick="document.getElementById('csv-file-inp').click()">
+      <p style="font-size:13px;color:var(--text2)">ファイルを選択またはドロップ</p>
+    </div>
+    <input type="file" id="csv-file-inp" accept=".csv" style="display:none" onchange="handleCsv(this)">
+    <div id="csv-preview-area"></div>
+    <button class="btn-p" id="csv-import-btn" style="display:none;margin-top:8px" onclick="importCsv()">インポートする</button>
+    <button class="btn-s" onclick="closeCsvModal()">キャンセル</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ═══════════════════════════════════════
+//  Constants
+// ═══════════════════════════════════════
+const HOURS=['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+const NATIONS=[{key:'dmale',label:'国内 男性'},{key:'dfemale',label:'国内 女性'},{key:'foreign',label:'海外'}];
+const STAFF_COLORS=['#1e4fa3','#16663e','#7a4f00','#982020','#5b3fa0','#0e6b7a'];
+const DAY_NAMES=['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'];
+const WX_LABELS={晴れ:'晴れ',曇り:'曇り',雨:'雨',雪:'雪'};
+
+// ═══════════════════════════════════════
+//  State
+// ═══════════════════════════════════════
+let staffMaster=JSON.parse(localStorage.getItem('staffMaster')||'[]');
+let LAT=35.4437,LON=139.638,STORE_NAME='入店分析';
+let forecastCache=null;
+let repMode='today';
+let csvParsed=[];
+let todayKey='',phase=0,shiftStaff=[],weather='';
+// storeHours[hour][type][nationKey]  type: entry|approach|fitting
+// staffDay[name][type][nationKey]    type: approach|fitting
+let storeHours={},staffDay={};
+let autoSaveTimer=null;
+
+// ═══════════════════════════════════════
+//  Storage
+// ═══════════════════════════════════════
+function getHistory(){return JSON.parse(localStorage.getItem('store-history')||'[]');}
+function saveHistory(h){localStorage.setItem('store-history',JSON.stringify(h));}
+function saveRecord(rec){
+  let h=getHistory();
+  const i=h.findIndex(r=>r.dateISO===rec.dateISO);
+  if(i>=0)h[i]=rec;else h.unshift(rec);
+  h.sort((a,b)=>b.dateISO.localeCompare(a.dateISO));
+  if(h.length>400)h=h.slice(0,400);
+  saveHistory(h);
+}
+function getTodayState(){return JSON.parse(localStorage.getItem('today-state')||'null');}
+function saveTodayState(){
+  localStorage.setItem('today-state',JSON.stringify({
+    todayKey,phase,shiftStaff,weather,storeHours,staffDay,
+    memo:document.getElementById('free-memo')?.value||''
+  }));
+}
+
+// ═══════════════════════════════════════
+//  Init structures
+// ═══════════════════════════════════════
+function initStoreHours(){
+  HOURS.forEach(h=>{
+    if(!storeHours[h])storeHours[h]={entry:{},approach:{},fitting:{}};
+    NATIONS.forEach(n=>{
+      ['entry','approach','fitting'].forEach(t=>{
+        if(storeHours[h][t][n.key]===undefined)storeHours[h][t][n.key]=0;
+      });
+    });
+  });
+}
+function initStaffDayFor(name){
+  if(!staffDay[name])staffDay[name]={approach:{},fitting:{}};
+  NATIONS.forEach(n=>{
+    ['approach','fitting'].forEach(t=>{
+      if(staffDay[name][t][n.key]===undefined)staffDay[name][t][n.key]=0;
+    });
+  });
+}
+
+// ═══════════════════════════════════════
+//  Aggregation
+// ═══════════════════════════════════════
+function sumN(obj){return NATIONS.reduce((s,n)=>s+(obj[n.key]||0),0);}
+function aggStore(){
+  const r={entry:{}};
+  NATIONS.forEach(n=>{r.entry[n.key]=0;});
+  HOURS.forEach(h=>NATIONS.forEach(n=>{
+    r.entry[n.key]+=(storeHours[h]?.entry[n.key]||0);
+  }));
+  return r;
+}
+function aggStaff(){
+  const r={approach:{},fitting:{}};
+  NATIONS.forEach(n=>{r.approach[n.key]=0;r.fitting[n.key]=0;});
+  shiftStaff.forEach(name=>NATIONS.forEach(n=>{
+    r.approach[n.key]+=(staffDay[name]?.approach[n.key]||0);
+    r.fitting[n.key]+=(staffDay[name]?.fitting[n.key]||0);
+  }));
+  return r;
+}
+// 入店はstoreHours、アプローチ・試着はスタッフ側から統合
+function aggAll(){
+  const s=aggStore();const st=aggStaff();
+  return{entry:s.entry,approach:st.approach,fitting:st.fitting};
+}
+function buildRecord(){
+  const all=aggAll();const st=aggStaff();
+  const tE=sumN(all.entry),tA=sumN(all.approach),tF=sumN(all.fitting);
+  const d=new Date(todayKey+'T00:00:00');
+  const memo=document.getElementById('free-memo')?.value||'';
+  return{
+    dateISO:todayKey,date:new Date(todayKey+'T00:00:00').toLocaleDateString('ja-JP'),
+    day:DAY_NAMES[d.getDay()],weather,memo,phase,
+    totalEntry:tE,totalApproach:tA,totalFitting:tF,
+    approachRate:tE?Math.round(tA/tE*100):0,
+    fittingRate:tE?Math.round(tF/tE*100):0,
+    peakHour:HOURS.reduce((b,h)=>sumN(storeHours[h]?.entry||{})>sumN(storeHours[b]?.entry||{})?h:b,HOURS[0]),
+    shiftStaff:[...shiftStaff],
+    entryByNation:all.entry,approachByNation:all.approach,fittingByNation:all.fitting,
+    staffApproachByNation:st.approach,staffFittingByNation:st.fitting,
+    storeHours:JSON.parse(JSON.stringify(storeHours)),
+    staffDay:JSON.parse(JSON.stringify(staffDay))
+  };
+}
+
+// ═══════════════════════════════════════
+//  Auto-save
+// ═══════════════════════════════════════
+function autoSave(){
+  saveTodayState();
+  if(phase>=1)saveRecord(buildRecord());
+  const bar=document.getElementById('autosave-bar');
+  if(bar){bar.classList.add('show');clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(()=>bar.classList.remove('show'),2000);}
+}
+
+// ═══════════════════════════════════════
+//  Phase management
+// ═══════════════════════════════════════
+function renderPhaseBanner(){
+  const banner=document.getElementById('phase-banner');
+  const icon=document.getElementById('phase-icon');
+  banner.className='phase-banner';
+  if(phase===0){
+    banner.classList.add('b-open');
+    document.getElementById('phase-label').textContent='始業前';
+    document.getElementById('phase-sub').textContent='出勤スタッフを選択して開始してください';
+    document.getElementById('phase-btn').textContent='始業開始';
+    icon.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  }else if(phase===1){
+    banner.classList.add('b-work');
+    document.getElementById('phase-label').textContent='営業中 — 自動保存中';
+    document.getElementById('phase-sub').textContent=`${shiftStaff.join(' / ')||'—'} ／ ${weather||'—'}`;
+    document.getElementById('phase-btn').textContent='締め作業へ';
+    icon.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+  }else{
+    banner.classList.add('b-done');
+    document.getElementById('phase-label').textContent='締め完了';
+    document.getElementById('phase-sub').textContent='データは保存されています';
+    document.getElementById('phase-btn').textContent='翌日にリセット';
+    icon.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  }
+}
+function renderPhaseBlocks(){
+  document.getElementById('phase0-block').style.display=phase===0?'block':'none';
+  document.getElementById('phase1-block').style.display=phase===1?'block':'none';
+  document.getElementById('phase2-block').style.display=phase===2?'block':'none';
+}
+function advancePhase(){
+  if(phase===0){
+    if(!shiftStaff.length){showToast('出勤スタッフを選択してください');return;}
+    if(!weather){showToast('天気を取得中です。しばらくお待ちください');return;}
+    phase=1;
+    initStoreHours();shiftStaff.forEach(n=>initStaffDayFor(n));
+    renderPhase1();autoSave();
+  }else if(phase===1){
+    openCloseModal();
+  }else if(phase===2){
+    if(!confirm('今日のデータをリセットして翌日の入力を開始しますか？'))return;
+    resetToday();
+  }
+  renderPhaseBanner();renderPhaseBlocks();
+}
+
+// ═══════════════════════════════════════
+//  Weather — Auto fetch from Open-Meteo
+// ═══════════════════════════════════════
+const WX_SVG={
+  晴れ:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+  曇り:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>`,
+  雨:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0018 7h-1.26A8 8 0 104 15.25"/></svg>`,
+  雪:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 17.58A5 5 0 0018 8h-1.26A8 8 0 104 15.25"/><line x1="8" y1="16" x2="8" y2="20"/><line x1="8" y1="24" x2="8" y2="22"/><line x1="12" y1="17" x2="12" y2="23"/><line x1="16" y1="16" x2="16" y2="20"/></svg>`
+};
+
+function wxCodeToLabel(code){
+  if(code<=1)return'晴れ';
+  if(code<=3)return'曇り';
+  if(code<=67)return'雨';
+  return'雪';
+}
+
+async function fetchTodayWeather(){
+  document.getElementById('wx-loading').style.display='block';
+  document.getElementById('wx-strip').style.display='none';
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1`;
+    const res=await fetch(url);
+    const json=await res.json();
+    const code=json.daily.weathercode[0];
+    const tmax=json.daily.temperature_2m_max[0];
+    const tmin=json.daily.temperature_2m_min[0];
+    weather=wxCodeToLabel(code);
+    document.getElementById('wx-loading').style.display='none';
+    document.getElementById('wx-strip').style.display='flex';
+    document.getElementById('wx-icon-wrap').innerHTML=WX_SVG[weather]||WX_SVG['曇り'];
+    document.getElementById('wx-label').textContent=weather;
+    document.getElementById('wx-sub').textContent=`最高 ${tmax}° / 最低 ${tmin}°`;
+    saveTodayState();
+  }catch(e){
+    document.getElementById('wx-loading').textContent='天気の取得に失敗しました（設定から地点を確認してください）';
+  }
+}
+
+// ═══════════════════════════════════════
+//  Phase 1 — Render
+// ═══════════════════════════════════════
+function renderPhase1(){
+  renderRTTotals();
+  buildHourSelect();
+  renderHourInputs();
+  renderStaffDailyCard();
+  renderPhaseBlocks();
+}
+
+// Realtime totals
+function renderRTTotals(){
+  const all=aggAll();
+  const tE=sumN(all.entry),tA=sumN(all.approach),tF=sumN(all.fitting);
+  document.getElementById('rt-nation-row').innerHTML=NATIONS.map(n=>`
+    <div class="rt-cell">
+      <div class="rt-cell-label">${n.label}</div>
+      <div class="rt-cell-val" id="rt-${n.key}">${all.entry[n.key]||0}</div>
+      <div class="rt-cell-sub">入店</div>
+    </div>`).join('');
+  document.getElementById('rt-strip').innerHTML=[
+    {l:'総入店',v:tE},{l:'アプローチ',v:tA},{l:'試着',v:tF},
+    {l:'アプローチ率',v:(tE?Math.round(tA/tE*100):0)+'%'},
+    {l:'試着率',v:(tE?Math.round(tF/tE*100):0)+'%'},
+  ].map(c=>`<div class="rt-chip"><div class="rt-chip-label">${c.l}</div><div class="rt-chip-val">${c.v}</div></div>`).join('');
+}
+
+function updateRTTotals(){
+  const all=aggAll();
+  const tE=sumN(all.entry),tA=sumN(all.approach),tF=sumN(all.fitting);
+  NATIONS.forEach(n=>{ const el=document.getElementById(`rt-${n.key}`); if(el)el.textContent=all.entry[n.key]||0; });
+  document.getElementById('rt-strip').innerHTML=[
+    {l:'総入店',v:tE},{l:'アプローチ',v:tA},{l:'試着',v:tF},
+    {l:'アプローチ率',v:(tE?Math.round(tA/tE*100):0)+'%'},
+    {l:'試着率',v:(tE?Math.round(tF/tE*100):0)+'%'},
+  ].map(c=>`<div class="rt-chip"><div class="rt-chip-label">${c.l}</div><div class="rt-chip-val">${c.v}</div></div>`).join('');
+}
+
+// Hour select
+function buildHourSelect(){
+  const now=new Date();const curH=`${now.getHours()}:00`;
+  const sel=document.getElementById('hour-select');
+  sel.innerHTML=HOURS.map(h=>`<option value="${h}"${h===curH?' selected':''}>${h}</option>`).join('');
+  const tag=document.getElementById('now-tag');
+  tag.style.display=HOURS.includes(curH)?'block':'none';
+}
+function onHourChange(){
+  const sel=document.getElementById('hour-select');
+  const now=new Date();const curH=`${now.getHours()}:00`;
+  const tag=document.getElementById('now-tag');
+  tag.style.display=sel.value===curH?'block':'none';
+  renderHourInputs();
+}
+
+// Render counter rows for selected hour
+function renderHourInputs(){
+  const h=document.getElementById('hour-select')?.value||HOURS[0];
+  const rowsEl=document.getElementById('entry-rows');
+  if(!rowsEl)return;
+  rowsEl.innerHTML=NATIONS.map(n=>`
+    <div class="nation-counter-row">
+      <div class="nation-label-col">
+        <div class="nation-name">${n.label}</div>
+      </div>
+      <div class="counter-col">
+        <button class="cnt-btn" onclick="adjStore('${h}','entry','${n.key}',-1)">−</button>
+        <span class="cnt-val" id="sv-${h.replace(':','')}-entry-${n.key}">${storeHours[h]?.entry?.[n.key]||0}</span>
+        <button class="cnt-btn" onclick="adjStore('${h}','entry','${n.key}',1)">+</button>
+      </div>
+    </div>`).join('');
+  updateSectionTotal('entry',h);
+}
+
+function adjStore(h,type,nkey,d){
+  storeHours[h][type][nkey]=Math.max(0,(storeHours[h][type][nkey]||0)+d);
+  const el=document.getElementById(`sv-${h.replace(':','')}-${type}-${nkey}`);
+  if(el)el.textContent=storeHours[h][type][nkey];
+  updateSectionTotal(type,h);
+  updateRTTotals();
+  autoSave();
+}
+
+function updateSectionTotal(type,h){
+  const total=NATIONS.reduce((s,n)=>s+(storeHours[h]?.[type]?.[n.key]||0),0);
+  const el=document.getElementById(`${type}-total-badge`);
+  if(el)el.textContent=`計 ${total} 名`;
+}
+
+// Staff daily card
+function renderStaffDailyCard(){
+  const card=document.getElementById('staff-daily-card');
+  if(!shiftStaff.length){card.style.display='none';return;}
+  card.style.display='block';
+  document.getElementById('staff-daily-list').innerHTML=shiftStaff.map((name,ci)=>`
+    <div class="staff-block">
+      <div class="staff-block-hdr">
+        <span class="staff-color-dot" style="background:${STAFF_COLORS[ci%STAFF_COLORS.length]}"></span>
+        <span class="staff-block-name">${name}</span>
+      </div>
+      <div class="staff-block-body">
+        ${['approach','fitting'].map(type=>`
+          <div class="staff-section-label">${type==='approach'?'アプローチ':'試着'}
+            <span class="staff-section-total" id="sd-total-${encodeURIComponent(name)}-${type}">計 0 名</span>
+          </div>
+          ${NATIONS.map(n=>`
+          <div class="nation-counter-row">
+            <div class="nation-label-col"><div class="nation-name">${n.label}</div></div>
+            <div class="counter-col">
+              <button class="cnt-btn" onclick="adjStaff('${encodeURIComponent(name)}','${type}','${n.key}',-1)">−</button>
+              <span class="cnt-val" id="sd-${encodeURIComponent(name)}-${type}-${n.key}">${staffDay[name]?.[type]?.[n.key]||0}</span>
+              <button class="cnt-btn" onclick="adjStaff('${encodeURIComponent(name)}','${type}','${n.key}',1)">+</button>
+            </div>
+          </div>`).join('')}`).join('')}
+        <div style="height:4px"></div>
+      </div>
+    </div>`).join('');
+  shiftStaff.forEach(name=>['approach','fitting'].forEach(type=>updateStaffSectionTotal(name,type)));
+}
+
+function adjStaff(encName,type,nkey,d){
+  const name=decodeURIComponent(encName);
+  staffDay[name][type][nkey]=Math.max(0,(staffDay[name][type][nkey]||0)+d);
+  const el=document.getElementById(`sd-${encName}-${type}-${nkey}`);
+  if(el)el.textContent=staffDay[name][type][nkey];
+  updateStaffSectionTotal(name,type);
+  updateRTTotals();
+  autoSave();
+}
+function updateStaffSectionTotal(name,type){
+  const total=NATIONS.reduce((s,n)=>s+(staffDay[name]?.[type]?.[n.key]||0),0);
+  const el=document.getElementById(`sd-total-${encodeURIComponent(name)}-${type}`);
+  if(el)el.textContent=`計 ${total} 名`;
+}
+
+// ═══════════════════════════════════════
+//  Shift
+// ═══════════════════════════════════════
+function renderShiftPills(){
+  const el=document.getElementById('shift-pills');
+  const msg=document.getElementById('no-staff-msg');
+  if(!staffMaster.length){el.innerHTML='';msg.style.display='block';return;}
+  msg.style.display='none';
+  el.innerHTML=staffMaster.map(n=>{
+    const on=shiftStaff.includes(n);
+    return`<div class="shift-pill${on?' on':''}" onclick="toggleShift('${encodeURIComponent(n)}')">
+      <span class="shift-pill-check"></span>${n}</div>`;
+  }).join('');
+}
+function toggleShift(enc){
+  const name=decodeURIComponent(enc);
+  if(shiftStaff.includes(name))shiftStaff=shiftStaff.filter(n=>n!==name);
+  else shiftStaff.push(name);
+  renderShiftPills();saveTodayState();
+}
+
+// ═══════════════════════════════════════
+//  Close
+// ═══════════════════════════════════════
+function openCloseModal(){
+  const rec=buildRecord();
+  document.getElementById('close-summary').innerHTML=`
+    入店：<strong>${rec.totalEntry}名</strong>（国内男 ${rec.entryByNation.dmale} / 国内女 ${rec.entryByNation.dfemale} / 海外 ${rec.entryByNation.foreign}）<br>
+    アプローチ：<strong>${rec.totalApproach}名</strong>（率 ${rec.approachRate}%）<br>
+    試着：<strong>${rec.totalFitting}名</strong>（率 ${rec.fittingRate}%）<br>
+    天気：${weather} ／ ピーク：${rec.peakHour}`;
+  document.getElementById('close-modal').classList.add('open');
+}
+function confirmClose(){
+  phase=2;saveRecord(buildRecord());saveTodayState();
+  document.getElementById('close-modal').classList.remove('open');
+  renderPhaseBanner();renderPhaseBlocks();
+  showToast('本日の締めが完了しました');
+}
+
+// ═══════════════════════════════════════
+//  Reset
+// ═══════════════════════════════════════
+function resetToday(){
+  const today=new Date();
+  todayKey=today.getFullYear()+'-'+(today.getMonth()+1).toString().padStart(2,'0')+'-'+today.getDate().toString().padStart(2,'0');
+  phase=0;shiftStaff=[];weather='';storeHours={};staffDay={};
+  if(document.getElementById('free-memo'))document.getElementById('free-memo').value='';
+  initStoreHours();renderShiftPills();renderPhaseBanner();renderPhaseBlocks();
+  fetchTodayWeather();saveTodayState();
+}
+
+// ═══════════════════════════════════════
+//  Period state for summary
+// ═══════════════════════════════════════
+let sumPeriod='day';
+let chartRefs={};
+
+function selPeriod(btn,period){
+  sumPeriod=period;
+  document.querySelectorAll('.period-tab').forEach(t=>{
+    const isActive=t===btn;
+    t.classList.toggle('active',isActive);
+    t.style.background=isActive?'var(--surface)':'none';
+    t.style.color=isActive?'var(--text)':'var(--text2)';
+    t.style.boxShadow=isActive?'0 1px 3px rgba(0,0,0,.1)':'none';
+  });
+  renderSummary();
+}
+
+// ═══════════════════════════════════════
+//  Data helpers for periods
+// ═══════════════════════════════════════
+function getPeriodHistory(period){
+  const history=getHistory();
+  const now=new Date();
+  const iso=(d)=>d.toISOString().slice(0,10);
+  if(period==='day'){
+    return history.filter(r=>r.dateISO===todayKey);
+  } else if(period==='week'){
+    const mon=new Date(now);
+    mon.setDate(now.getDate()-now.getDay()+(now.getDay()===0?-6:1));
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    return history.filter(r=>r.dateISO>=iso(mon)&&r.dateISO<=iso(sun));
+  } else {
+    const ym=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}`;
+    return history.filter(r=>r.dateISO&&r.dateISO.startsWith(ym));
+  }
+}
+
+function getPrevPeriodHistory(period){
+  const history=getHistory();
+  const now=new Date();
+  const iso=(d)=>d.toISOString().slice(0,10);
+  if(period==='day'){
+    const prev=new Date(now);prev.setFullYear(prev.getFullYear()-1);
+    const prevISO=iso(prev);
+    // same weekday ±3 days last year
+    return history.filter(r=>{
+      if(!r.dateISO)return false;
+      const d=new Date(r.dateISO+'T00:00:00');
+      return d.getFullYear()===now.getFullYear()-1&&r.day===DAY_NAMES[now.getDay()];
+    });
+  } else if(period==='week'){
+    const mon=new Date(now);
+    mon.setDate(now.getDate()-now.getDay()+(now.getDay()===0?-6:1));
+    mon.setFullYear(mon.getFullYear()-1);
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    return history.filter(r=>r.dateISO>=iso(mon)&&r.dateISO<=iso(sun));
+  } else {
+    const yr=now.getFullYear()-1;
+    const ym=`${yr}-${(now.getMonth()+1).toString().padStart(2,'0')}`;
+    return history.filter(r=>r.dateISO&&r.dateISO.startsWith(ym));
+  }
+}
+
+function sumPeriodMetrics(records){
+  let tE=0,tA=0,tF=0;
+  const eN={dmale:0,dfemale:0,foreign:0};
+  const aN={dmale:0,dfemale:0,foreign:0};
+  const fN={dmale:0,dfemale:0,foreign:0};
+  const staffA={};const staffF={};
+  records.forEach(r=>{
+    tE+=r.totalEntry||0;tA+=r.totalApproach||0;tF+=r.totalFitting||0;
+    NATIONS.forEach(n=>{
+      eN[n.key]+=(r.entryByNation?.[n.key]||0);
+      aN[n.key]+=(r.approachByNation?.[n.key]||0);
+      fN[n.key]+=(r.fittingByNation?.[n.key]||0);
+    });
+    (r.shiftStaff||[]).forEach(name=>{
+      if(!staffA[name])staffA[name]=0;if(!staffF[name])staffF[name]=0;
+      staffA[name]+=(r.staffApproachByNation?NATIONS.reduce((s,n)=>s+(r.staffApproachByNation[n.key]||0),0):(r.staffDay?.[name]?NATIONS.reduce((s,n)=>s+(r.staffDay[name]?.approach?.[n.key]||0),0):0));
+      staffF[name]+=(r.staffFittingByNation?NATIONS.reduce((s,n)=>s+(r.staffFittingByNation[n.key]||0),0):(r.staffDay?.[name]?NATIONS.reduce((s,n)=>s+(r.staffDay[name]?.fitting?.[n.key]||0),0):0));
+    });
+  });
+  return{tE,tA,tF,eN,aN,fN,staffA,staffF,
+    approachRate:tE?Math.round(tA/tE*100):0,
+    fittingRate:tE?Math.round(tF/tE*100):0,
+    cvRate:tE?Math.round(tF/tE*100):0};
+}
+
+// ═══════════════════════════════════════
+//  Pie chart helper
+// ═══════════════════════════════════════
+const PIE_COLORS_NATION=['#1e4fa3','#e05c8a','#16663e'];
+const PIE_COLORS_STAFF=STAFF_COLORS;
+
+function destroyChart(key){
+  if(chartRefs[key]){chartRefs[key].destroy();delete chartRefs[key];}
+}
+
+function renderPieChart(canvasId,legendId,labels,values,colors){
+  destroyChart(canvasId);
+  const total=values.reduce((a,b)=>a+b,0);
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  chartRefs[canvasId]=new Chart(canvas,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:2,borderColor:'var(--surface)'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}名 (${total?Math.round(ctx.raw/total*100):0}%)`}}},cutout:'62%'}
+  });
+  const legendEl=document.getElementById(legendId);
+  if(legendEl){
+    legendEl.className='pie-legend';
+    legendEl.innerHTML=labels.map((l,i)=>`
+      <div class="pie-legend-item">
+        <span class="pie-legend-dot" style="background:${colors[i]}"></span>
+        <span class="pie-legend-label">${l}</span>
+        <span class="pie-legend-val">${values[i]}</span>
+        <span class="pie-legend-pct">${total?Math.round(values[i]/total*100):0}%</span>
+      </div>`).join('');
+  }
+}
+
+// ═══════════════════════════════════════
+//  Summary
+// ═══════════════════════════════════════
+function renderSummary(){
+  // Current period data
+  let cur,curLabel;
+  if(sumPeriod==='day'){
+    const all=aggAll();
+    const tE=sumN(all.entry),tA=sumN(all.approach),tF=sumN(all.fitting);
+    cur={tE,tA,tF,
+      eN:all.entry,aN:all.approach,fN:all.fitting,
+      staffA:shiftStaff.reduce((acc,n)=>({...acc,[n]:NATIONS.reduce((s2,nn)=>s2+(staffDay[n]?.approach[nn.key]||0),0)}),{}),
+      staffF:shiftStaff.reduce((acc,n)=>({...acc,[n]:NATIONS.reduce((s2,nn)=>s2+(staffDay[n]?.fitting[nn.key]||0),0)}),{}),
+      approachRate:tE?Math.round(tA/tE*100):0,
+      fittingRate:tE?Math.round(tF/tE*100):0};
+    curLabel='本日';
+  } else {
+    const recs=getPeriodHistory(sumPeriod);
+    cur=sumPeriodMetrics(recs);
+    curLabel=sumPeriod==='week'?'今週':'今月';
+  }
+  const prevRecs=getPrevPeriodHistory(sumPeriod);
+  const prev=sumPeriodMetrics(prevRecs);
+
+  // KPI metrics
+  const pct=(a,b)=>b?Math.round((a-b)/b*100):null;
+  document.getElementById('sum-metrics').innerHTML=`
+    <div class="metric">
+      <div class="metric-label">総入店数</div>
+      <div class="metric-value">${cur.tE}</div>
+      <div class="metric-sub">${curLabel}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">総アプローチ数</div>
+      <div class="metric-value">${cur.tA}</div>
+      <div class="metric-sub">率 ${cur.approachRate}%</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">総試着数</div>
+      <div class="metric-value">${cur.tF}</div>
+      <div class="metric-sub">率 ${cur.fittingRate}%</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">CV率（入店→試着）</div>
+      <div class="metric-value">${cur.fittingRate}%</div>
+      <div class="metric-sub">${cur.tE}名 → ${cur.tF}名</div>
+    </div>`;
+
+  // YoY comparison
+  const yoyItems=[
+    {label:'入店',cur:cur.tE,prev:prev.tE},
+    {label:'アプローチ',cur:cur.tA,prev:prev.tA},
+    {label:'試着',cur:cur.tF,prev:prev.tF},
+  ];
+  const periodLabel=sumPeriod==='day'?'前年同曜日比':sumPeriod==='week'?'前年同週比':'前年同月比';
+  document.getElementById('yoy-comparison').innerHTML=`
+    <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:8px">${periodLabel}</div>
+    <div class="yoy-grid">
+      ${yoyItems.map(item=>{
+        const p=pct(item.cur,item.prev);
+        const cls=p===null?'flat':p>0?'up':p<0?'down':'flat';
+        const sign=p>0?'▲':p<0?'▼':'';
+        return`<div class="yoy-cell ${cls}">
+          <div class="yoy-cell-label">${item.label}</div>
+          <div class="yoy-cell-val">${p!==null?sign+Math.abs(p)+'%':'—'}</div>
+          <div class="yoy-cell-sub">${item.cur}名 / 前年${item.prev||'—'}名</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Funnel bar chart
+  destroyChart('funnelChart');
+  const cvData=[
+    {label:'入店→アプローチ率',val:cur.approachRate},
+    {label:'アプローチ→試着率',val:cur.tA?Math.round(cur.tF/cur.tA*100):0},
+    {label:'入店→試着率（CV）',val:cur.fittingRate},
+  ];
+  chartRefs['funnelChart']=new Chart(document.getElementById('funnelChart'),{
+    type:'bar',
+    data:{
+      labels:cvData.map(d=>d.label),
+      datasets:[{
+        data:cvData.map(d=>d.val),
+        backgroundColor:['#1e4fa3','#16663e','#7a4f00'],
+        borderRadius:6
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw}%`}}},
+      scales:{x:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}},y:{ticks:{font:{size:11}}}}
+    }
+  });
+
+  // Entry pie (all periods)
+  renderPieChart('entryPieChart','entryPieLegend',
+    NATIONS.map(n=>n.label),NATIONS.map(n=>cur.eN[n.key]||0),PIE_COLORS_NATION);
+
+  // Approach/Fitting pies (week + month only)
+  const showExtraPies=sumPeriod!=='day';
+  document.getElementById('approachPieCard').style.display=showExtraPies?'block':'none';
+  document.getElementById('fittingPieCard').style.display=showExtraPies?'block':'none';
+  if(showExtraPies){
+    renderPieChart('approachPieChart','approachPieLegend',
+      NATIONS.map(n=>n.label),NATIONS.map(n=>cur.aN[n.key]||0),PIE_COLORS_NATION);
+    renderPieChart('fittingPieChart','fittingPieLegend',
+      NATIONS.map(n=>n.label),NATIONS.map(n=>cur.fN[n.key]||0),PIE_COLORS_NATION);
+  }
+
+  // Staff pies
+  const staffNames=Object.keys(cur.staffA).filter(n=>cur.staffA[n]>0||cur.staffF[n]>0);
+  renderPieChart('staffApproachPieChart','staffApproachPieLegend',
+    staffNames,staffNames.map(n=>cur.staffA[n]||0),PIE_COLORS_STAFF);
+  renderPieChart('staffFittingPieChart','staffFittingPieLegend',
+    staffNames,staffNames.map(n=>cur.staffF[n]||0),PIE_COLORS_STAFF);
+
+  // Monthly trend lines (month period only)
+  const showMonthly=sumPeriod==='month';
+  document.getElementById('trendLineCard').style.display=showMonthly?'block':'none';
+  document.getElementById('staffTrendCard').style.display=showMonthly?'block':'none';
+  if(showMonthly){
+    const history=getHistory();
+    const yr=new Date().getFullYear();
+    const months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    const mE=Array(12).fill(0),mA=Array(12).fill(0),mF=Array(12).fill(0),mC=Array(12).fill(0);
+    const prevE=Array(12).fill(0),prevC=Array(12).fill(0);
+    const staffMonthly={};
+    history.forEach(r=>{
+      if(!r.dateISO)return;
+      const d=new Date(r.dateISO+'T00:00:00'),m=d.getMonth(),y=d.getFullYear();
+      if(y===yr){mE[m]+=r.totalEntry||0;mA[m]+=r.totalApproach||0;mF[m]+=r.totalFitting||0;mC[m]++;}
+      if(y===yr-1){prevE[m]+=r.totalEntry||0;prevC[m]++;}
+      (r.shiftStaff||[]).forEach(name=>{
+        if(!staffMonthly[name])staffMonthly[name]=Array(12).fill(0);
+        if(y===yr)staffMonthly[name][m]+=(r.staffApproachByNation?NATIONS.reduce((s,n)=>s+(r.staffApproachByNation[n.key]||0),0):(r.staffDay?.[name]?NATIONS.reduce((s,n)=>s+(r.staffDay[name]?.approach?.[n.key]||0),0):0));
+      });
+    });
+    destroyChart('trendLineChart');
+    chartRefs['trendLineChart']=new Chart(document.getElementById('trendLineChart'),{
+      type:'line',
+      data:{labels:months,datasets:[
+        {label:'入店',data:mE.map((v,i)=>mC[i]?Math.round(v/mC[i]):null),borderColor:'#1e4fa3',backgroundColor:'rgba(30,79,163,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true},
+        {label:'アプローチ',data:mA.map((v,i)=>mC[i]?Math.round(v/mC[i]):null),borderColor:'#16663e',backgroundColor:'rgba(22,102,62,.06)',fill:true,tension:.3,pointRadius:3,spanGaps:true},
+        {label:'試着',data:mF.map((v,i)=>mC[i]?Math.round(v/mC[i]):null),borderColor:'#7a4f00',backgroundColor:'rgba(122,79,0,.06)',fill:true,tension:.3,pointRadius:3,spanGaps:true},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},usePointStyle:true}}},scales:{y:{beginAtZero:true}}}
+    });
+    // Staff trend
+    const staffKeys=Object.keys(staffMonthly);
+    destroyChart('staffTrendChart');
+    chartRefs['staffTrendChart']=new Chart(document.getElementById('staffTrendChart'),{
+      type:'line',
+      data:{labels:months,datasets:staffKeys.map((name,i)=>({
+        label:name,data:staffMonthly[name],borderColor:STAFF_COLORS[i%STAFF_COLORS.length],
+        backgroundColor:'transparent',tension:.3,pointRadius:3,spanGaps:true
+      }))},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},usePointStyle:true}}},scales:{y:{beginAtZero:true}}}
+    });
+  }
+
+  // YoY bar chart
+  destroyChart('yoyBarChart');
+  const periodSuffix=sumPeriod==='day'?'(前年同曜日)':sumPeriod==='week'?'(前年同週)':'(前年同月)';
+  chartRefs['yoyBarChart']=new Chart(document.getElementById('yoyBarChart'),{
+    type:'bar',
+    data:{
+      labels:['入店','アプローチ','試着'],
+      datasets:[
+        {label:`今${sumPeriod==='day'?'日':sumPeriod==='week'?'週':'月'}`,data:[cur.tE,cur.tA,cur.tF],backgroundColor:'#1e4fa3',borderRadius:5},
+        {label:`前年${periodSuffix}`,data:[prev.tE,prev.tA,prev.tF],backgroundColor:'#c8c7c0',borderRadius:5},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},usePointStyle:true}}},scales:{y:{beginAtZero:true}}}
+  });
+
+  // Breakdown table
+  document.getElementById('entry-breakdown').innerHTML=`
+    <thead><tr><th>客層</th><th>入店</th><th>アプローチ</th><th>試着</th><th>CV率</th></tr></thead>
+    <tbody>
+      ${NATIONS.map(n=>`<tr>
+        <td>${n.label}</td>
+        <td>${cur.eN[n.key]||0}</td>
+        <td>${cur.aN[n.key]||0}</td>
+        <td>${cur.fN[n.key]||0}</td>
+        <td>${cur.eN[n.key]?Math.round((cur.fN[n.key]||0)/cur.eN[n.key]*100):0}%</td>
+      </tr>`).join('')}
+      <tr><td>合計</td><td>${cur.tE}</td><td>${cur.tA}</td><td>${cur.tF}</td><td>${cur.fittingRate}%</td></tr>
+    </tbody>`;
+
+  // Staff table
+  const allStaffNames=[...new Set([...shiftStaff,...Object.keys(cur.staffA)])];
+  document.getElementById('staff-sum-list').innerHTML=allStaffNames.length
+    ?allStaffNames.map((name,i)=>{
+      const a=cur.staffA[name]||0,f=cur.staffF[name]||0;
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700">
+          <span style="width:9px;height:9px;border-radius:50%;background:${STAFF_COLORS[i%STAFF_COLORS.length]};flex-shrink:0"></span>${name}
+        </div>
+        <div style="font-size:12px;color:var(--text2);text-align:right;line-height:1.7">
+          アプローチ ${a}名 (${cur.tE?Math.round(a/cur.tE*100):0}%)<br>試着 ${f}名 (${cur.tE?Math.round(f/cur.tE*100):0}%)
+        </div></div>`;
+    }).join('')
+    :'<p style="color:var(--text3);font-size:13px">スタッフデータなし</p>';
+}
+
+// ═══════════════════════════════════════
+//  Forecast (simplified: prediction + 7-day)
+// ═══════════════════════════════════════
+function calcCorr(history){
+  const map={晴れ:[],曇り:[],雨:[],雪:[]};
+  history.forEach(r=>{if(r.weather&&map[r.weather]&&r.totalEntry>0)map[r.weather].push(r.totalEntry);});
+  const res={};
+  Object.keys(map).forEach(wx=>{const a=map[wx];res[wx]={avg:a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null,count:a.length};});
+  return res;
+}
+function predictEntry(wx,dayLabel,history,corr){
+  // 1. same weekday + same weather (≥2 records)
+  const same=history.filter(r=>r.weather===wx&&r.day===dayLabel&&r.totalEntry>0);
+  if(same.length>=2){
+    const avg=Math.round(same.reduce((s,r)=>s+r.totalEntry,0)/same.length);
+    return{val:avg,basis:`同曜日×${wx}の過去${same.length}件平均`};
+  }
+  // 2. same weather
+  if(corr[wx]?.count>=1){
+    return{val:corr[wx].avg,basis:`${wx}の日の過去${corr[wx].count}件平均`};
+  }
+  // 3. overall average
+  const all=history.filter(r=>r.totalEntry>0);
+  if(all.length){
+    const avg=Math.round(all.reduce((s,r)=>s+r.totalEntry,0)/all.length);
+    return{val:avg,basis:`全${all.length}件の平均（天気データ蓄積中）`};
+  }
+  return{val:null,basis:'データが不足しています'};
+}
+async function loadForecast(){
+  document.getElementById('forecast-loading').style.display='block';
+  document.getElementById('forecast-content').style.display='none';
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=7`;
+    const res=await fetch(url);
+    forecastCache=await res.json();
+    renderForecast(forecastCache);
+  }catch(e){
+    document.getElementById('forecast-loading').innerHTML='<p style="color:var(--red);font-size:13px;padding:12px">天気予報の取得に失敗しました。設定の地点を確認してください。</p>';
+  }
+}
+function renderForecast(json){
+  document.getElementById('forecast-loading').style.display='none';
+  document.getElementById('forecast-content').style.display='block';
+  const history=getHistory();
+  const corr=calcCorr(history);
+  const D=json.daily;
+  const dShort=['日','月','火','水','木','金','土'];
+
+  // Today
+  const todayWx=wxCodeToLabel(D.weathercode[0]);
+  const todayDate=new Date(D.time[0]+'T00:00:00');
+  const tp=predictEntry(todayWx,DAY_NAMES[todayDate.getDay()],history,corr);
+  document.getElementById('pred-val').textContent=tp.val!==null?tp.val:'—';
+  document.getElementById('pred-basis').textContent=
+    `${DAY_NAMES[todayDate.getDay()]} ${todayWx}　最高${D.temperature_2m_max[0]}° / 最低${D.temperature_2m_min[0]}°\n予測根拠：${tp.basis}`;
+
+  // 7-day cards with weather icon + prediction
+  document.getElementById('forecast-row').innerHTML=D.time.map((t,i)=>{
+    const d=new Date(t+'T00:00:00');
+    const wx=wxCodeToLabel(D.weathercode[i]);
+    const pr=predictEntry(wx,DAY_NAMES[d.getDay()],history,corr);
+    const precip=D.precipitation_probability_max?.[i]??'—';
+    return`<div class="forecast-day">
+      <div class="fd-date">${(d.getMonth()+1)}/${d.getDate()}(${dShort[d.getDay()]})</div>
+      <div class="fd-wx">${WX_SVG[wx]||''}</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${wx} ${precip}%</div>
+      <div class="fd-pred">${pr.val!==null?pr.val+'名':'—'}</div>
+      <div style="font-size:10px;color:var(--text3)">${D.temperature_2m_max[i]}°/${D.temperature_2m_min[i]}°</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+//  Report
+// ═══════════════════════════════════════
+function selRepTab(btn,mode){
+  repMode=mode;
+  document.querySelectorAll('.rep-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('report-area').innerHTML=`<div class="card" style="text-align:center;padding:2rem 1rem">
+    <div style="width:56px;height:56px;background:var(--accent-l);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--accent)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <p style="color:var(--text2);font-size:14px;line-height:1.6;margin-bottom:14px">AIがデータを分析します</p>
+    <button class="btn-p" onclick="genReport()">レポートを生成</button></div>`;
+}
+async function genReport(){
+  const area=document.getElementById('report-area');
+  area.innerHTML=`<div class="card"><div class="thinking"><div class="da"></div><div class="da"></div><div class="da"></div><span style="margin-left:6px">分析中...</span></div></div>`;
+  const history=getHistory();const rec=buildRecord();const corr=calcCorr(history);
+  let prompt='';
+  if(repMode==='today'){
+    prompt=`アパレル路面店アナリストとして以下を日本語・箇条書き300字で分析してください。
+本日: ${rec.day}/${weather}/入店${rec.totalEntry}/アプローチ${rec.totalApproach}(${rec.approachRate}%)/試着${rec.totalFitting}(${rec.fittingRate}%)
+国籍別: ${NATIONS.map(n=>`${n.label}:入店${rec.entryByNation[n.key]}アプローチ${rec.approachByNation[n.key]}試着${rec.fittingByNation[n.key]}`).join(' / ')}
+スタッフ: ${shiftStaff.map(nm=>`${nm}:アプローチ${sumN(staffDay[nm]?.approach||{})}試着${sumN(staffDay[nm]?.fitting||{})}`).join(' / ')||'なし'}
+過去5件: ${JSON.stringify(history.slice(0,5).map(r=>({date:r.date,day:r.day,wx:r.weather,entry:r.totalEntry,appRate:r.approachRate})))}
+分析: 1.ファネル評価 2.国籍別傾向 3.スタッフ考察 4.明日のアクション`;
+  }else if(repMode==='week'){
+    prompt=`週間データ分析(日本語箇条書き250字):\n${JSON.stringify(history.slice(0,7).map(r=>({date:r.date,day:r.day,wx:r.weather,entry:r.totalEntry,appRate:r.approachRate})))}\n曜日・天気傾向、接客率差、改善点、来週施策`;
+  }else if(repMode==='yoy'){
+    const yr=new Date().getFullYear();
+    const ty=history.filter(r=>r.dateISO&&new Date(r.dateISO+'T00:00:00').getFullYear()===yr);
+    const ly=history.filter(r=>r.dateISO&&new Date(r.dateISO+'T00:00:00').getFullYear()===yr-1);
+    prompt=`前年比分析(日本語箇条書き300字):\n今年${ty.length}件 前年${ly.length}件\n天気相関:${JSON.stringify(corr)}\n今年:${JSON.stringify(ty.slice(0,20).map(r=>({date:r.date,day:r.day,wx:r.weather,entry:r.totalEntry})))}\n前年比トレンド・改善点・戦略提案`;
+  }else{
+    prompt=`長期トレンド分析(日本語箇条書き300字):全${history.length}件\n${JSON.stringify(history.map(r=>({date:r.date,day:r.day,wx:r.weather,entry:r.totalEntry,appRate:r.approachRate})))}\n天気相関:${JSON.stringify(corr)}\n来客トレンド・客層変化・相関・戦略`;
+  }
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const json=await res.json();
+    const text=json.content?.map(c=>c.text||'').join('')||'生成に失敗しました。';
+    area.innerHTML=`<div class="card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--accent)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span style="font-size:13px;font-weight:700">AI分析レポート</span></div>
+      <div class="ai-bubble">${text.replace(/\n/g,'<br>')}</div></div>`;
+  }catch(e){
+    area.innerHTML=`<div class="card"><div class="ai-bubble" style="border-left-color:var(--red)">エラーが発生しました。再度お試しください。</div></div>`;
+  }
+}
+
+// ═══════════════════════════════════════
+//  History
+// ═══════════════════════════════════════
+function renderHistory(){
+  const history=getHistory();
+  const el=document.getElementById('history-list');
+  if(!history.length){el.innerHTML='<p style="color:var(--text3);font-size:13px;padding:8px 0">まだデータがありません</p>';return;}
+  el.innerHTML=history.map(r=>`<div class="hist-card">
+    <div style="font-size:14px;font-weight:700">${r.date}（${r.day}）<span style="font-size:12px;font-weight:500;color:var(--text2);margin-left:8px">${r.weather||''}</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:3px">入店 ${r.totalEntry}名 ／ アプローチ率 ${r.approachRate}% ／ 試着率 ${r.fittingRate}%</div>
+    <div class="chips">
+      <span class="chip chip-b">ピーク ${r.peakHour}</span>
+      ${(r.shiftStaff||[]).map(n=>`<span class="chip chip-a">${n}</span>`).join('')}
+    </div></div>`).join('');
+}
+
+// ═══════════════════════════════════════
+//  CSV
+// ═══════════════════════════════════════
+function openCsvModal(){document.getElementById('csv-modal').classList.add('open');}
+function closeCsvModal(){document.getElementById('csv-modal').classList.remove('open');document.getElementById('csv-preview-area').innerHTML='';document.getElementById('csv-import-btn').style.display='none';document.getElementById('csv-file-inp').value='';csvParsed=[];}
+const csvDrop=document.getElementById('csv-drop');
+csvDrop.addEventListener('dragover',e=>{e.preventDefault();csvDrop.classList.add('over');});
+csvDrop.addEventListener('dragleave',()=>csvDrop.classList.remove('over'));
+csvDrop.addEventListener('drop',e=>{e.preventDefault();csvDrop.classList.remove('over');if(e.dataTransfer.files[0])parseCsv(e.dataTransfer.files[0]);});
+function handleCsv(inp){if(inp.files[0])parseCsv(inp.files[0]);}
+
+function normalizeWeather(raw){
+  if(!raw)return'未設定';
+  const s=raw.trim();
+  if(/晴.*雨|晴.*曇/.test(s))return'晴れ';
+  if(/雨.*晴|雨.*曇/.test(s))return'雨';
+  if(/曇.*雨|雨.*曇/.test(s))return'曇り';
+  if(s==='晴')return'晴れ';
+  if(s==='曇')return'曇り';
+  if(['晴れ','曇り','雨','雪'].includes(s))return s;
+  if(s.startsWith('晴'))return'晴れ';
+  if(s.startsWith('曇'))return'曇り';
+  if(s.startsWith('雨'))return'雨';
+  if(s.startsWith('雪'))return'雪';
+  return'未設定';
+}
+
+function decodeBuffer(buffer){
+  const encodings=['utf-8','shift_jis','euc-jp'];
+  for(const enc of encodings){
+    try{
+      const decoded=new TextDecoder(enc,{fatal:true}).decode(buffer);
+      if(/[\u3000-\u9FFF]/.test(decoded))return decoded;
+    }catch(e){}
+  }
+  return new TextDecoder('utf-8').decode(buffer);
+}
+
+function parseCsv(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=decodeBuffer(e.target.result);
+    const lines=text.split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2){showToast('データが見つかりません');return;}
+    const hdrs=lines[0].split(',').map(h=>h.trim());
+    const fc=(names)=>{for(const n of names){const i=hdrs.findIndex(h=>h.includes(n));if(i>=0)return i;}return -1;};
+    const cDate=fc(['年月日','日付','date']);
+    const cDay=fc(['曜日']);
+    const cWx=fc(['天気','weather']);
+    const cEntry=fc(['入店数','入店','entry']);
+    const cApp=fc(['アプローチ人数','アプローチ数','アプローチ','approach']);
+    const cFit=fc(['試着人数','試着数','試着','fitting']);
+    if(cDate<0){showToast('「年月日」または「日付」列が見つかりません');return;}
+    if(cEntry<0){showToast('「入店数」または「入店」列が見つかりません');return;}
+    csvParsed=[];
+    lines.slice(1).forEach(line=>{
+      if(!line.trim())return;
+      const cols=line.split(',').map(c=>c.trim());
+      const raw=cols[cDate]||'';
+      const dateISO=raw.replace(/\//g,'-').replace(/^(\d{4})-(\d{1,2})-(\d{1,2})$/,(_,y,m,d)=>`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
+      let dayLabel='';
+      if(dateISO.match(/^\d{4}-\d{2}-\d{2}$/)){const d=new Date(dateISO+'T00:00:00');dayLabel=DAY_NAMES[d.getDay()];}
+      if(cDay>=0&&cols[cDay])dayLabel=cols[cDay];
+      const entry=parseInt(cols[cEntry])||0;
+      const app=cApp>=0?parseInt(cols[cApp])||0:0;
+      const fit=cFit>=0?parseInt(cols[cFit])||0:0;
+      const wx=normalizeWeather(cWx>=0?cols[cWx]:'');
+      csvParsed.push({date:raw,dateISO,day:dayLabel,weather:wx,
+        totalEntry:entry,totalApproach:app,totalFitting:fit,totalPurchase:0,
+        approachRate:entry?Math.round(app/entry*100):0,
+        fittingRate:entry?Math.round(fit/entry*100):0,purchaseRate:0,
+        peakHour:'—',shiftStaff:[],
+        entryByNation:{dmale:0,dfemale:0,foreign:0},
+        approachByNation:{dmale:0,dfemale:0,foreign:0},
+        fittingByNation:{dmale:0,dfemale:0,foreign:0},staffDay:{}});
+    });
+    document.getElementById('csv-preview-area').innerHTML=`<div class="csv-preview"><p style="font-size:12px;color:var(--text2);margin-bottom:6px">${csvParsed.length}件検出（先頭5件）</p><table><thead><tr><th>日付</th><th>曜日</th><th>天気</th><th>入店</th><th>アプローチ</th><th>試着</th></tr></thead><tbody>${csvParsed.slice(0,5).map(r=>`<tr><td>${r.date}</td><td>${r.day}</td><td>${r.weather}</td><td>${r.totalEntry}</td><td>${r.totalApproach}</td><td>${r.totalFitting}</td></tr>`).join('')}</tbody></table></div>`;
+    document.getElementById('csv-import-btn').style.display='block';
+  };
+  reader.readAsArrayBuffer(file);
+}
+function importCsv(){let n=0;csvParsed.forEach(r=>{saveRecord(r);n++;});closeCsvModal();showToast(`${n}件をインポートしました`);renderHistory();}
+
+// ═══════════════════════════════════════
+//  Settings
+// ═══════════════════════════════════════
+function loadConfig(){
+  const cfg=JSON.parse(localStorage.getItem('store-config')||'{}');
+  if(cfg.lat)LAT=cfg.lat;if(cfg.lon)LON=cfg.lon;if(cfg.name)STORE_NAME=cfg.name;
+  document.getElementById('hdr-title').textContent=STORE_NAME||'入店分析';
+}
+function openSettings(){
+  const cfg=JSON.parse(localStorage.getItem('store-config')||'{}');
+  document.getElementById('cfg-name').value=cfg.name||'';
+  document.getElementById('cfg-lat').value=cfg.lat||'';
+  document.getElementById('cfg-lon').value=cfg.lon||'';
+  document.getElementById('cfg-loc-label').textContent=cfg.locLabel||'未設定';
+  document.getElementById('loc-result').style.display='none';
+  document.getElementById('loc-error').style.display='none';
+  document.getElementById('loc-candidates').style.display='none';
+  document.getElementById('cfg-staff-inp').value='';
+  document.getElementById('cfg-staff-msg').style.display='none';
+  renderSettingsStaffList();
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+function saveSettings(){
+  const name=document.getElementById('cfg-name').value.trim();
+  const lat=parseFloat(document.getElementById('cfg-lat').value);
+  const lon=parseFloat(document.getElementById('cfg-lon').value);
+  const locLabel=document.getElementById('cfg-loc-label').textContent;
+  if(isNaN(lat)||isNaN(lon)){showToast('緯度・経度を入力してください');return;}
+  if(lat<20||lat>50||lon<120||lon>150){showToast('日本国内の座標を入力してください');return;}
+  localStorage.setItem('store-config',JSON.stringify({name,lat,lon,locLabel}));
+  LAT=lat;LON=lon;STORE_NAME=name||'入店分析';
+  document.getElementById('hdr-title').textContent=STORE_NAME;
+  forecastCache=null;
+  closeSettings();
+  fetchTodayWeather();
+  showToast('設定を保存しました');
+}
+function renderSettingsStaffList(){
+  const el=document.getElementById('cfg-staff-list');
+  if(!staffMaster.length){el.innerHTML='<p style="font-size:12px;color:var(--text3);padding:4px 0">まだ登録されていません</p>';return;}
+  el.innerHTML=staffMaster.map((name,i)=>`<div class="staff-list-item">
+    <span class="sli-dot" style="background:${STAFF_COLORS[i%STAFF_COLORS.length]}"></span>
+    <span class="sli-name">${name}</span>
+    <button class="sli-del" onclick="removeStaff('${encodeURIComponent(name)}')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button></div>`).join('');
+}
+function addStaff(){
+  const inp=document.getElementById('cfg-staff-inp');
+  const msgEl=document.getElementById('cfg-staff-msg');
+  const name=inp.value.trim();msgEl.style.display='none';
+  if(!name)return;
+  if(staffMaster.includes(name)){msgEl.textContent=`「${name}」はすでに登録されています`;msgEl.style.display='block';return;}
+  staffMaster.push(name);localStorage.setItem('staffMaster',JSON.stringify(staffMaster));
+  inp.value='';inp.focus();
+  renderSettingsStaffList();renderShiftPills();
+  showToast(`${name} を追加しました`);
+}
+function removeStaff(enc){
+  const name=decodeURIComponent(enc);
+  if(!confirm(`「${name}」を削除しますか？`))return;
+  staffMaster=staffMaster.filter(n=>n!==name);localStorage.setItem('staffMaster',JSON.stringify(staffMaster));
+  shiftStaff=shiftStaff.filter(n=>n!==name);
+  renderSettingsStaffList();renderShiftPills();showToast(`${name} を削除しました`);
+}
+async function searchLoc(){
+  const q=document.getElementById('loc-inp').value.trim();
+  if(!q){showToast('地名を入力してください');return;}
+  const rEl=document.getElementById('loc-result'),eEl=document.getElementById('loc-error'),cEl=document.getElementById('loc-candidates');
+  rEl.style.display='none';eEl.style.display='none';cEl.style.display='none';cEl.innerHTML='';
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=ja&countrycodes=jp`,{headers:{'User-Agent':'store-tracker-app'}});
+    const results=await res.json();
+    if(!results.length){eEl.textContent='地点が見つかりませんでした';eEl.style.display='block';return;}
+    if(results.length===1){applyLoc(results[0]);}
+    else{
+      cEl.style.display='block';
+      cEl.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">${results.length}件見つかりました：</div>`+
+        results.map((r,i)=>`<button onclick="applyLocIdx(${i})" style="display:block;width:100%;text-align:left;padding:9px 10px;margin-bottom:4px;border:1.5px solid var(--border-s);border-radius:var(--rs);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit">${r.display_name}</button>`).join('');
+      window._locRes=results;
+    }
+  }catch(e){eEl.textContent='検索に失敗しました';eEl.style.display='block';}
+}
+function applyLocIdx(i){applyLoc(window._locRes[i]);}
+function applyLoc(r){
+  const lat=parseFloat(r.lat),lon=parseFloat(r.lon);
+  document.getElementById('cfg-lat').value=lat.toFixed(4);
+  document.getElementById('cfg-lon').value=lon.toFixed(4);
+  const label=r.display_name.split(',').slice(0,3).join(', ');
+  document.getElementById('cfg-loc-label').textContent=label;
+  const rEl=document.getElementById('loc-result');
+  rEl.textContent=`${label}\n緯度 ${lat.toFixed(4)} / 経度 ${lon.toFixed(4)}`;
+  rEl.style.display='block';
+  document.getElementById('loc-candidates').style.display='none';
+  document.getElementById('loc-error').style.display='none';
+}
+
+// ═══════════════════════════════════════
+//  Nav
+// ═══════════════════════════════════════
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['input','forecast','summary','report','history'][i]===id));
+  if(id==='summary')renderSummary();
+  if(id==='history')renderHistory();
+  if(id==='forecast')loadForecast();
+}
+
+// ═══════════════════════════════════════
+//  Toast
+// ═══════════════════════════════════════
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ═══════════════════════════════════════
+//  Event listeners
+// ═══════════════════════════════════════
+document.getElementById('settings-modal').addEventListener('click',e=>{if(e.target===document.getElementById('settings-modal'))closeSettings();});
+document.getElementById('csv-modal').addEventListener('click',e=>{if(e.target===document.getElementById('csv-modal'))closeCsvModal();});
+document.getElementById('close-modal').addEventListener('click',e=>{if(e.target===document.getElementById('close-modal'))document.getElementById('close-modal').classList.remove('open');});
+document.getElementById('loc-inp').addEventListener('keydown',e=>{if(e.key==='Enter')searchLoc();});
+document.getElementById('cfg-staff-inp').addEventListener('keydown',e=>{if(e.key==='Enter')addStaff();});
+
+// ═══════════════════════════════════════
+//  Init
+// ═══════════════════════════════════════
+function init(){
+  loadConfig();
+  const today=new Date();
+  const iso=today.getFullYear()+'-'+(today.getMonth()+1).toString().padStart(2,'0')+'-'+today.getDate().toString().padStart(2,'0');
+  document.getElementById('today-badge').textContent=today.toLocaleDateString('ja-JP',{month:'long',day:'numeric'});
+
+  const saved=getTodayState();
+  if(saved&&saved.todayKey===iso){
+    todayKey=saved.todayKey;phase=saved.phase;
+    shiftStaff=saved.shiftStaff||[];weather=saved.weather||'';
+    storeHours=saved.storeHours||{};staffDay=saved.staffDay||{};
+    initStoreHours();shiftStaff.forEach(n=>initStaffDayFor(n));
+    if(phase===1){
+      renderPhase1();
+      if(saved.memo)setTimeout(()=>{const el=document.getElementById('free-memo');if(el)el.value=saved.memo;},50);
+    }
+    if(weather){
+      document.getElementById('wx-loading').style.display='none';
+      document.getElementById('wx-strip').style.display='flex';
+      document.getElementById('wx-icon-wrap').innerHTML=WX_SVG[weather]||WX_SVG['曇り'];
+      document.getElementById('wx-label').textContent=weather;
+    }
+  }else{
+    todayKey=iso;initStoreHours();
+    fetchTodayWeather();
+  }
+  renderShiftPills();renderPhaseBanner();renderPhaseBlocks();
+}
+
+init();
+</script>
+</body>
+</html>
